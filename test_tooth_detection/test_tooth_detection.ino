@@ -1,5 +1,5 @@
 #define Hall_Switch_Pin 3
-#define Output_LED_Pin 7
+#define Output_LED_Pin 14
 
 void Trigger_Wheel_Tooth_Interrupt() {
   if (digitalRead(Hall_Switch_Pin) == HIGH) {
@@ -8,6 +8,7 @@ void Trigger_Wheel_Tooth_Interrupt() {
   else {
     digitalWrite(Output_LED_Pin, HIGH);
   }
+  Serial.println("fuck");
 }
 
 void setup() {
