@@ -27,6 +27,7 @@ const float VE_Table_Speed_Step = (VE_Table_Maximum_Speed - VE_Table_Minimum_Spe
 const float VE_Table_Minimum_MAP = 0.0; // Minimum tabulated MAP in VE table, in kPa.
 const float VE_Table_Maximum_MAP = 100.0; // Minimum tabulated MAP in VE table, in kPa.
 const float VE_Table_MAP_Step = (VE_Table_Maximum_MAP - VE_Table_Minimum_MAP)/(VE_Table_MAP_Points - 1);
+const float Redline = 0.0216; // Engine speed beyond which fuel will be cut.
 
 // VE Table.
 float VE_Table[VE_Table_Speed_Points][VE_Table_MAP_Points] = {
@@ -75,10 +76,10 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   int Upper_Speed_Index = min(VE_Table_Speed_Points - 1, Lower_Speed_Index - 1);
   int Lower_MAP_Index = max(0, min(VE_Table_MAP_Points - 1, (int)(MAP/VE_Table_MAP_Step)));
   int Upper_MAP_Index = min(VE_Table_MAP_Points - 1, Lower_MAP_Index - 1);
-  float Interpolated_VE = interpolation(Crankshaft_Speed, Lower_Speed_Index * VE_Table_Speed_Step, Upper_Speed_Index * VE_Table_Speed_Step,
-    interpolation(MAP, Lower_MAP_Index * VE_Table_MAP_Step, Upper_MAP_Index * VE_Table_MAP_Step,
+  float Interpolated_VE = interpolation(Crankshaft_Speed, Lower_Speed_Index*VE_Table_Speed_Step, Upper_Speed_Index*VE_Table_Speed_Step,
+    interpolation(MAP, Lower_MAP_Index*VE_Table_MAP_Step, Upper_MAP_Index*VE_Table_MAP_Step,
       VE_Table[Lower_Speed_Index][Lower_MAP_Index], VE_Table[Lower_Speed_Index][Upper_MAP_Index]),
-    interpolation(MAP, Lower_MAP_Index * VE_Table_MAP_Step, Upper_MAP_Index * VE_Table_MAP_Step,
+    interpolation(MAP, Lower_MAP_Index*VE_Table_MAP_Step, Upper_MAP_Index*VE_Table_MAP_Step,
       VE_Table[Upper_Speed_Index][Lower_MAP_Index], VE_Table[Upper_Speed_Index][Upper_MAP_Index]));
   // Insert code to translate VE to an injector pulse length.
   return Interpolated_VE;
@@ -115,7 +116,7 @@ void loop() {
   ((Tooth_Number == Number_Of_Actual_Teeth) && (Crankshaft_Position < 360))) {
     Crankshaft_Position = (Tooth_Number - 1)*Degrees_Per_Tooth + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
   }
-  if ((Old_Crankshaft_Position < Injection_Angle) && (Crankshaft_Position >= Injection_Angle)) {
+  if ((Old_Crankshaft_Position < Injection_Angle) && (Crankshaft_Position >= Injection_Angle) && (Crankshaft_Speed < Redline)) {
     // Insert code to translate MAP input value to MAP.
     Injection_Time = Injection_Time_Calculation(Crankshaft_Speed, MAP);
     digitalWrite(Injector_Signal_Pin, HIGH);
