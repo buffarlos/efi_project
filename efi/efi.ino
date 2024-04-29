@@ -1,15 +1,16 @@
-// Volatile variables.
-volatile unsigned long Last_Time_Interval = 0; // Previous recorded time interval between teeth detected, in microseconds, for missing tooth detection.
-volatile unsigned long Last_Tooth_Time = 0; // Most recent recorded absolute time when tooth was detected, in microseconds.
-volatile byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
+// Volatile variable.
+volatile bool Tooth_Detected = false; // Trigger_Wheel_Tooth_ISR will set this value to true when tripped.
 
 // Nonvolatile variables.
+unsigned long Last_Time_Interval = 0; // Previous recorded time interval between teeth detected, in microseconds, for missing tooth detection.
+unsigned long Last_Tooth_Time = 0; // Most recent recorded absolute time when tooth was detected, in microseconds.
 unsigned long Injection_Start_Time; // Absolute time when crankshaft reached injection angle and injector signal went high, in microseconds.
 unsigned long Injection_Time; // Time interval calculated to hold injector signal high to inject correct fuel load, in microseconds.
 float Crankshaft_Position; // Crankshaft position, based on last detected tooth number and speed-based interpolation, in degrees.
 float Crankshaft_Speed; // Crankshaft speed, in degrees per microsecond.
 float Old_Crankshaft_Position = 0; // Crankshaft position last seen by loop function, in degrees.
 float MAP; // Manifold absolute pressure, in kPa.
+byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
 byte Old_Tooth_Number = 0; // Tooth number last seen by loop function. If != Tooth_Number, loop function knows new tooth was detected.
 
 // Constants.
@@ -28,26 +29,7 @@ const float Redline = 0.0216; // Crankshaft speed beyond which fuel will be cut,
 
 void Trigger_Wheel_Tooth_ISR() {
   // Interrupt triggered when Hall effect switch signal falls from high to low.
-  unsigned long Interrupt_Time = micros(); // Absolute time at which tooth was just detected, in microseconds.
-  unsigned long Current_Time_Interval = Interrupt_Time - Last_Tooth_Time; // Just recorded time interval between teeth detected, in microseconds.
-  if (Current_Time_Interval > Gap_Detection_Threshold*Last_Time_Interval) {
-    if ((Tooth_Number == Number_Of_Actual_Teeth) || (Tooth_Number == 0)) {
-      Tooth_Number = 1;
-    }
-    else if ((Tooth_Number != Number_Of_Actual_Teeth) && (Tooth_Number != 0)) {
-      Tooth_Number = 0;
-    }
-  }
-  else if (Tooth_Number != 0) {
-    if (Tooth_Number < Number_Of_Actual_Teeth) {
-      Tooth_Number++;
-    }
-    else {
-      Tooth_Number = 0;
-    }
-  }
-  Last_Tooth_Time = Interrupt_Time;
-  Last_Time_Interval = Current_Time_Interval;
+  Tooth_Detected = true;
 }
 
 float Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
@@ -108,8 +90,30 @@ void setup() {
 }
 
 void loop() {
+  if (Tooth_Detected == true) {
+    unsigned long Interrupt_Time = micros(); // Absolute time at which tooth was just detected, in microseconds.
+    unsigned long Current_Time_Interval = Interrupt_Time - Last_Tooth_Time; // Just recorded time interval between teeth detected, in microseconds.
+    if (Current_Time_Interval > Gap_Detection_Threshold*Last_Time_Interval) {
+      if ((Tooth_Number == Number_Of_Actual_Teeth) || (Tooth_Number == 0)) {
+        Tooth_Number = 1;
+      }
+      else if ((Tooth_Number != Number_Of_Actual_Teeth) && (Tooth_Number != 0)) {
+        Tooth_Number = 0;
+      }
+    }
+    else if (Tooth_Number != 0) {
+      if (Tooth_Number < Number_Of_Actual_Teeth) {
+        Tooth_Number++;
+      }
+      else {
+        Tooth_Number = 0;
+      }
+    }
+    Last_Tooth_Time = Interrupt_Time;
+    Last_Time_Interval = Current_Time_Interval;
+    Tooth_Detected = false;
+  }
   if ((Tooth_Number != Old_Tooth_Number) && (Tooth_Number != 0)) {
-    noInterrupts();
     if (Tooth_Number != 1) {
       Crankshaft_Speed = Degrees_Per_Tooth/Last_Time_Interval;
     }
@@ -118,28 +122,24 @@ void loop() {
     }
     Crankshaft_Position = (Tooth_Number - 1)*Degrees_Per_Tooth;
     Old_Tooth_Number = Tooth_Number;
-    interrupts();
   }
   if (((Tooth_Number != Number_Of_Actual_Teeth) && (Tooth_Number != 0) && (Crankshaft_Position < Tooth_Number*Degrees_Per_Tooth)) || 
   ((Tooth_Number == Number_Of_Actual_Teeth) && (Crankshaft_Position < 360))) {
     Crankshaft_Position = (Tooth_Number - 1)*Degrees_Per_Tooth + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
   }
-  if ((Old_Crankshaft_Position < Injection_Angle) && (Crankshaft_Position >= Injection_Angle) && (Crankshaft_Speed < Redline)) {
+  if ((Old_Crankshaft_Position < Injection_Angle) && (Crankshaft_Position >= Injection_Angle) && (Crankshaft_Speed < Redline) && (Tooth_Number != 0)) {
     // Insert code to translate MAP input value to MAP.
     MAP = 95;
     Injection_Time = 10000*Injection_Time_Calculation(Crankshaft_Speed, MAP);
     digitalWrite(Injector_Signal_Pin, HIGH);
     Injection_Start_Time = micros();
-    Serial.println(Injection_Start_Time);
   }
   if (micros() - Injection_Start_Time >= Injection_Time) {
     digitalWrite(Injector_Signal_Pin, LOW);
   }
   // Diagnostic crankshaft position signal.
-  /*
   if (micros() % 10000 == 0) {
     Serial.println(Crankshaft_Position);
   }
-  */
   Old_Crankshaft_Position = Crankshaft_Position;
 }
