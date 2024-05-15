@@ -84,7 +84,6 @@ float Interpolation(float x, float xl, float xu, float yl, float yu) {
 void setup() {
   pinMode(Hall_Switch_Pin, INPUT);
   pinMode(Injector_Signal_Pin, OUTPUT);
-  pinMode(MAP_Sensor_Pin, INPUT);
   attachInterrupt(digitalPinToInterrupt(Hall_Switch_Pin), Trigger_Wheel_Tooth_ISR, FALLING);
 }
 
