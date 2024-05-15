@@ -23,9 +23,8 @@ const float Injection_Angle = 90; // Crankshaft angle at which injection should 
 const float Redline = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
 
 // Pin name constants.
-#define Hall_Switch_Pin 3
-#define Injector_Signal_Pin 14
-#define MAP_Sensor_Pin A9
+#define Hall_Switch_Pin 9
+#define Injector_Signal_Pin 6
 
 void Trigger_Wheel_Tooth_ISR() {
   // Interrupt triggered when Hall effect switch signal falls from high to low.
