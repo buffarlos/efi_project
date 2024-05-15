@@ -14,13 +14,12 @@ byte Tooth_Number = 0; // Most recent detected tooth number, with 1 correspondin
 byte Old_Tooth_Number = 0; // Tooth number last seen by loop function. If != Tooth_Number, loop function knows new tooth was detected.
 
 // Constants.
-const byte Number_Of_Teeth = 24; // Number of teeth on trigger wheel. INCLUDE MISSING TEETH (e.g. enter 18 for 18-1 trigger wheel, not 17).
-const byte Number_Of_Missing_Teeth = 2; // Number of missing teeth on trigger wheel.
-const byte Number_Of_Actual_Teeth = Number_Of_Teeth - Number_Of_Missing_Teeth; // Number of physical teeth on trigger wheel.
-const float Degrees_Per_Tooth = 360/Number_Of_Teeth; // Angle swept out by each trigger wheel tooth, in degrees.
-const float Gap_Detection_Threshold = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
-const float Injection_Angle = 90; // Crankshaft angle at which injection should occur, in degrees.
-const float Redline = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
+const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 17 for 18-1 trigger wheel, not 18).
+const byte NUMBER_OF_MISSING_TEETH = 2; // Number of missing teeth on trigger wheel.
+const float DEGREES_PER_TOOTH = 360/(NUMBER_OF_TEETH + NUMBER_OF_MISSING_TEETH); // Angle swept out by each trigger wheel tooth, in degrees.
+const float GAP_DETECTION_THRESHOLD = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
+const float INJECTION_ANGLE = 90; // Crankshaft angle at which injection should occur, in degrees.
+const float REDLINE = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
 
 // Pin name constants.
 #define Hall_Switch_Pin 9
@@ -88,19 +87,23 @@ void setup() {
 }
 
 void loop() {
-  if (Tooth_Detected == true) {
+  noInterrupts();
+  bool Need_Update = Tooth_Detected;
+  Tooth_Detected = false;
+  interrupts();
+  if (Need_Update) {
     unsigned long Interrupt_Time = micros(); // Absolute time at which tooth was just detected, in microseconds.
     unsigned long Current_Time_Interval = Interrupt_Time - Last_Tooth_Time; // Just recorded time interval between teeth detected, in microseconds.
-    if (Current_Time_Interval > Gap_Detection_Threshold*Last_Time_Interval) {
-      if ((Tooth_Number == Number_Of_Actual_Teeth) || (Tooth_Number == 0)) {
+    if (Current_Time_Interval > GAP_DETECTION_THRESHOLD*Last_Time_Interval) {
+      if ((Tooth_Number == NUMBER_OF_TEETH) || (Tooth_Number == 0)) {
         Tooth_Number = 1;
       }
-      else if ((Tooth_Number != Number_Of_Actual_Teeth) && (Tooth_Number != 0)) {
+      else if ((Tooth_Number != NUMBER_OF_TEETH) && (Tooth_Number != 0)) {
         Tooth_Number = 0;
       }
     }
     else if (Tooth_Number != 0) {
-      if (Tooth_Number < Number_Of_Actual_Teeth) {
+      if (Tooth_Number < NUMBER_OF_TEETH) {
         Tooth_Number++;
       }
       else {
@@ -109,23 +112,23 @@ void loop() {
     }
     Last_Tooth_Time = Interrupt_Time;
     Last_Time_Interval = Current_Time_Interval;
-    Tooth_Detected = false;
+    Need_Update = false;
   }
   if ((Tooth_Number != Old_Tooth_Number) && (Tooth_Number != 0)) {
     if (Tooth_Number != 1) {
-      Crankshaft_Speed = Degrees_Per_Tooth/Last_Time_Interval;
+      Crankshaft_Speed = DEGREES_PER_TOOTH/Last_Time_Interval;
     }
     else if (Tooth_Number == 1) {
-      Crankshaft_Speed = (Number_Of_Missing_Teeth + 1)*(Degrees_Per_Tooth/Last_Time_Interval);
+      Crankshaft_Speed = (NUMBER_OF_MISSING_TEETH + 1)*(DEGREES_PER_TOOTH/Last_Time_Interval);
     }
-    Crankshaft_Position = (Tooth_Number - 1)*Degrees_Per_Tooth;
+    Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH;
     Old_Tooth_Number = Tooth_Number;
   }
-  if (((Tooth_Number != Number_Of_Actual_Teeth) && (Tooth_Number != 0) && (Crankshaft_Position < Tooth_Number*Degrees_Per_Tooth)) || 
-  ((Tooth_Number == Number_Of_Actual_Teeth) && (Crankshaft_Position < 360))) {
-    Crankshaft_Position = (Tooth_Number - 1)*Degrees_Per_Tooth + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
+  if (((Tooth_Number != NUMBER_OF_TEETH) && (Tooth_Number != 0) && (Crankshaft_Position < Tooth_Number*DEGREES_PER_TOOTH)) || 
+  ((Tooth_Number == NUMBER_OF_TEETH) && (Crankshaft_Position < 360))) {
+    Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
   }
-  if ((Old_Crankshaft_Position < Injection_Angle) && (Crankshaft_Position >= Injection_Angle) && (Crankshaft_Speed < Redline) && (Tooth_Number != 0)) {
+  if ((Old_Crankshaft_Position < INJECTION_ANGLE) && (Crankshaft_Position >= INJECTION_ANGLE) && (Crankshaft_Speed < REDLINE) && (Tooth_Number != 0)) {
     // Insert code to translate MAP input value to MAP.
     MAP = 95;
     Injection_Time = 10000*Injection_Time_Calculation(Crankshaft_Speed, MAP);
