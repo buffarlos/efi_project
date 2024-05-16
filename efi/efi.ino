@@ -15,12 +15,22 @@ byte Tooth_Number = 0; // Most recent detected tooth number, with 1 correspondin
 byte Old_Tooth_Number = 0; // Tooth number last seen by loop function. If != Tooth_Number, loop function knows new tooth was detected.
 
 // Constants.
-const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 17 for 18-1 trigger wheel, not 18).
+const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
 const byte NUMBER_OF_MISSING_TEETH = 2; // Number of missing teeth on trigger wheel.
 const float DEGREES_PER_TOOTH = 360/(NUMBER_OF_TEETH + NUMBER_OF_MISSING_TEETH); // Angle swept out by each trigger wheel tooth, in degrees.
 const float GAP_DETECTION_THRESHOLD = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
 const float INJECTION_ANGLE = 90; // Crankshaft angle at which injection should occur, in degrees.
 const float REDLINE = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
+const float ENRICHMENT_FACTOR = 1.5; // Multiply injector pulse length by this amount so long as choke switch is on.
+
+// MAP sensor calibration constants.
+const float MAP_SLOPE = 0.11943; // Slope of MAP sensor output, in kilopascals per count.
+const float MAP_CAL_PRESSURE = 101.0; // MAP sensor calibration pressure point, in kilopascals.
+const int MAP_CAL_COUNT = 817; // MAP sensor output at calibration pressure point, in counts.
+
+// Injector constants.
+const float DEAD_TIME = 1000.0; // Minimum injector pulse length to open injector, in microseconds.
+const unsigned long ONE_HUNDRED_PCT_VE_PULSE = 8694; // Stoichiometric fuel load pulse at 100% VE minus dead time, in microseconds.
 
 // Pin name constants.
 #define Hall_Switch_Pin 9
@@ -74,11 +84,12 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
         VE_Table[Upper_MAP_Index][Lower_Speed_Index], VE_Table[Upper_MAP_Index][Upper_Speed_Index]));
   }
   // Translate VE to an injector pulse length.
-  float Injection_Time = 1000 + (8694*Interpolated_VE);
-  if (digitalRead(Choke_Pin == LOW)) {
-    Injection_Time = Injection_Time*1.5;
+  float Injection_Time = DEAD_TIME + (ONE_HUNDRED_PCT_VE_PULSE*Interpolated_VE);
+  if (digitalRead(Choke_Pin) == LOW) {
+    Injection_Time = Injection_Time*ENRICHMENT_FACTOR;
   }
-  return Injection_Time;
+  int Int_Injection_Time = static_cast<int>(Injection_Time);
+  return Int_Injection_Time;
 }
 
 float Interpolation(float x, float xl, float xu, float yl, float yu) {
@@ -143,19 +154,25 @@ void loop() {
   if ((Old_Crankshaft_Position < INJECTION_ANGLE) && (Crankshaft_Position >= INJECTION_ANGLE) && (Crankshaft_Speed < REDLINE) && (Tooth_Number != 0)) {
     // Insert code to translate MAP input value to MAP.
     int MAP_Raw = analogRead(A4);
-    MAP = 101.0 + ((MAP_Raw - 817)/8.37326);
+    MAP = MAP_CAL_PRESSURE + ((MAP_Raw - MAP_CAL_COUNT)*MAP_SLOPE);
     Injection_Time = Injection_Time_Calculation(Crankshaft_Speed, min(MAP, Old_MAP));
     digitalWrite(Injector_Signal_Pin, HIGH);
     Injection_Start_Time = micros();
     Old_MAP = MAP;
+    // Diagnostic injection pulse length.
+    /*
+    Serial.println(Injection_Time);
+    */
   }
   if (micros() - Injection_Start_Time >= Injection_Time) {
     digitalWrite(Injector_Signal_Pin, LOW);
   }
   // Diagnostic crankshaft position signal.
+  /*
   if (micros() % 10000 == 0) {
     Serial.println(Crankshaft_Position);
   }
   // Update old crankshaft position.
+  */
   Old_Crankshaft_Position = Crankshaft_Position;
 }
