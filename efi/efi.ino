@@ -172,7 +172,7 @@ void loop() {
   if (micros() % 10000 == 0) {
     Serial.println(Crankshaft_Position);
   }
-  // Update old crankshaft position.
   */
+  // Update old crankshaft position.
   Old_Crankshaft_Position = Crankshaft_Position;
 }
