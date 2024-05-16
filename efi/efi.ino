@@ -9,7 +9,8 @@ unsigned long Injection_Time; // Time interval calculated to hold injector signa
 float Crankshaft_Position; // Crankshaft position, based on last detected tooth number and speed-based interpolation, in degrees.
 float Crankshaft_Speed; // Crankshaft speed, in degrees per microsecond.
 float Old_Crankshaft_Position = 0; // Crankshaft position last seen by loop function, in degrees.
-float MAP; // Manifold absolute pressure, in kPa.
+float MAP; // Manifold absolute pressure, in kilopascals.
+float Old_MAP = 101.0; // Last measured manifold absolute pressure, in kilopascals.
 byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
 byte Old_Tooth_Number = 0; // Tooth number last seen by loop function. If != Tooth_Number, loop function knows new tooth was detected.
 
@@ -24,13 +25,14 @@ const float REDLINE = 0.0216; // Crankshaft speed beyond which fuel will be cut,
 // Pin name constants.
 #define Hall_Switch_Pin 9
 #define Injector_Signal_Pin 6
+#define Choke_Pin 21
 
 void Trigger_Wheel_Tooth_ISR() {
   // Interrupt triggered when Hall effect switch signal falls from high to low.
   Tooth_Detected = true;
 }
 
-float Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
+unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   // Takes current crankshaft speed and MAP, and calculates interpolated injection time based on VE table.
   // VE Table Constants.
   const int VE_Table_Speed_Points = 8; // Number of linearly spaced tabulated crankshaft speed points in VE table.
@@ -71,8 +73,12 @@ float Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
       Interpolation(MAP, (Lower_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP), (Upper_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP),
         VE_Table[Upper_MAP_Index][Lower_Speed_Index], VE_Table[Upper_MAP_Index][Upper_Speed_Index]));
   }
-  // Insert code to translate VE to an injector pulse length.
-  return Interpolated_VE;
+  // Translate VE to an injector pulse length.
+  float Injection_Time = 1000 + (8694*Interpolated_VE);
+  if (digitalRead(Choke_Pin == LOW)) {
+    Injection_Time = Injection_Time*1.5;
+  }
+  return Injection_Time;
 }
 
 float Interpolation(float x, float xl, float xu, float yl, float yu) {
@@ -83,14 +89,17 @@ float Interpolation(float x, float xl, float xu, float yl, float yu) {
 void setup() {
   pinMode(Hall_Switch_Pin, INPUT);
   pinMode(Injector_Signal_Pin, OUTPUT);
+  pinMode(Choke_Pin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(Hall_Switch_Pin), Trigger_Wheel_Tooth_ISR, FALLING);
 }
 
 void loop() {
+  // Pass volatile tooth detection flag to nonvolatile tooth detection flag in interrupt-safe environment.
   noInterrupts();
   bool Need_Update = Tooth_Detected;
   Tooth_Detected = false;
   interrupts();
+  // Update tooth counter if tooth detection flag tripped.
   if (Need_Update) {
     unsigned long Interrupt_Time = micros(); // Absolute time at which tooth was just detected, in microseconds.
     unsigned long Current_Time_Interval = Interrupt_Time - Last_Tooth_Time; // Just recorded time interval between teeth detected, in microseconds.
@@ -114,6 +123,7 @@ void loop() {
     Last_Time_Interval = Current_Time_Interval;
     Need_Update = false;
   }
+  // If tooth counter has changed since last loop, update crankshaft speed and position.
   if ((Tooth_Number != Old_Tooth_Number) && (Tooth_Number != 0)) {
     if (Tooth_Number != 1) {
       Crankshaft_Speed = DEGREES_PER_TOOTH/Last_Time_Interval;
@@ -124,16 +134,20 @@ void loop() {
     Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH;
     Old_Tooth_Number = Tooth_Number;
   }
+  // Interpolate crankshaft position based on last calculated crankshaft speed and time elapsed since last tooth detection.
   if (((Tooth_Number != NUMBER_OF_TEETH) && (Tooth_Number != 0) && (Crankshaft_Position < Tooth_Number*DEGREES_PER_TOOTH)) || 
   ((Tooth_Number == NUMBER_OF_TEETH) && (Crankshaft_Position < 360))) {
     Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
   }
+  // Fuel injection.
   if ((Old_Crankshaft_Position < INJECTION_ANGLE) && (Crankshaft_Position >= INJECTION_ANGLE) && (Crankshaft_Speed < REDLINE) && (Tooth_Number != 0)) {
     // Insert code to translate MAP input value to MAP.
-    MAP = 95;
-    Injection_Time = 10000*Injection_Time_Calculation(Crankshaft_Speed, MAP);
+    int MAP_Raw = analogRead(A4);
+    MAP = 101.0 + ((MAP_Raw - 817)/8.37326);
+    Injection_Time = Injection_Time_Calculation(Crankshaft_Speed, min(MAP, Old_MAP));
     digitalWrite(Injector_Signal_Pin, HIGH);
     Injection_Start_Time = micros();
+    Old_MAP = MAP;
   }
   if (micros() - Injection_Start_Time >= Injection_Time) {
     digitalWrite(Injector_Signal_Pin, LOW);
@@ -142,5 +156,6 @@ void loop() {
   if (micros() % 10000 == 0) {
     Serial.println(Crankshaft_Position);
   }
+  // Update old crankshaft position.
   Old_Crankshaft_Position = Crankshaft_Position;
 }
