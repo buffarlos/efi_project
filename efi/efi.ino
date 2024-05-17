@@ -20,7 +20,7 @@ const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCL
 const byte NUMBER_OF_MISSING_TEETH = 2; // Number of missing teeth on trigger wheel.
 const float DEGREES_PER_TOOTH = 360/(NUMBER_OF_TEETH + NUMBER_OF_MISSING_TEETH); // Angle swept out by each trigger wheel tooth, in degrees.
 const float GAP_DETECTION_THRESHOLD = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
-const float INJECTION_ANGLE = 90; // Crankshaft angle at which injection should occur, in degrees.
+const float INJECTION_ANGLE = 90.0; // Crankshaft angle at which injection should occur, in degrees.
 const float REDLINE = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
 const float ENRICHMENT_FACTOR = 1.5; // Multiply injector pulse length by this amount so long as choke switch is on.
 
@@ -153,7 +153,7 @@ void loop() {
   }
   // Interpolate crankshaft position based on last calculated crankshaft speed and time elapsed since last tooth detection.
   if (Crankshaft_Position < Angle_Interpolation_Limit) {
-    Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
+    Crankshaft_Position = Tooth_Start_Position + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
     if (Crankshaft_Position > Angle_Interpolation_Limit) {
       Crankshaft_Position = Angle_Interpolation_Limit;
     }
