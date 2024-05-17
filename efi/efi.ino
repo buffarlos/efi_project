@@ -69,7 +69,7 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
     {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}
   }; // Startup regime VE table.
   int Lower_MAP_Index = max(0, min(VE_Table_MAP_Points - 2, (int)((MAP - VE_Table_Minimum_MAP)/VE_Table_MAP_Step))); // Index of tabulated MAP below measured MAP.
-  int Upper_MAP_Index = min(VE_Table_MAP_Points - 1, Lower_MAP_Index + 1); // Index of tabulated MAP above measured MAP.
+  int Upper_MAP_Index = Lower_MAP_Index + 1; // Index of tabulated MAP above measured MAP.
   float Interpolated_VE; // Interpolated VE based on VE table.
   if (Crankshaft_Speed < VE_Table_Minimum_Speed) {
     Interpolated_VE = Interpolation(MAP, (Lower_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP), (Upper_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP),
@@ -77,7 +77,7 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   }
   else {
     int Lower_Speed_Index = max(0, min(VE_Table_Speed_Points - 2, (int)((Crankshaft_Speed - VE_Table_Minimum_Speed)/VE_Table_Speed_Step))); // Index of tabulated crankshaft speed below measured crankshaft speed.
-    int Upper_Speed_Index = min(VE_Table_Speed_Points - 1, Lower_Speed_Index + 1); // Index of tabulated crankshaft speed above measured crankshaft speed.
+    int Upper_Speed_Index = Lower_Speed_Index + 1; // Index of tabulated crankshaft speed above measured crankshaft speed.
     Interpolated_VE = Interpolation(Crankshaft_Speed, (Lower_Speed_Index*VE_Table_Speed_Step + VE_Table_Minimum_Speed), (Upper_Speed_Index*VE_Table_Speed_Step + VE_Table_Minimum_Speed),
       Interpolation(MAP, (Lower_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP), (Upper_MAP_Index*VE_Table_MAP_Step + VE_Table_Minimum_MAP),
         VE_Table[Lower_MAP_Index][Lower_Speed_Index], VE_Table[Lower_MAP_Index][Upper_Speed_Index]),
@@ -168,9 +168,7 @@ void loop() {
     Injection_Start_Time = micros();
     Old_MAP = MAP;
     // Diagnostic injection pulse length.
-    /*
-    Serial.println(Injection_Time);
-    */
+    // Serial.println(Injection_Time);
   }
   if (micros() - Injection_Start_Time >= Injection_Time) {
     digitalWrite(Injector_Signal_Pin, LOW);
