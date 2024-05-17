@@ -11,8 +11,9 @@ float Crankshaft_Speed; // Crankshaft speed, in degrees per microsecond.
 float Old_Crankshaft_Position = 0; // Crankshaft position last seen by loop function, in degrees.
 float MAP; // Manifold absolute pressure, in kilopascals.
 float Old_MAP = 101.0; // Last measured manifold absolute pressure, in kilopascals.
+float Tooth_Start_Position; // Angular position of last detected tooth, in degrees.
+float Angle_Interpolation_Limit; // Angle to which crankshaft position should be interpolated.
 byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
-byte Old_Tooth_Number = 0; // Tooth number last seen by loop function. If != Tooth_Number, loop function knows new tooth was detected.
 
 // Constants.
 const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
@@ -132,23 +133,30 @@ void loop() {
     }
     Last_Tooth_Time = Interrupt_Time;
     Last_Time_Interval = Current_Time_Interval;
+    if (Tooth_Number != 0) {
+      Tooth_Start_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH;
+      if (Tooth_Number != NUMBER_OF_TEETH) {
+        Angle_Interpolation_Limit = Tooth_Number*DEGREES_PER_TOOTH;
+      }
+      else if (Tooth_Number == NUMBER_OF_TEETH) {
+        Angle_Interpolation_Limit = 360.0;
+      }
+      if (Tooth_Number != 1) {
+        Crankshaft_Speed = DEGREES_PER_TOOTH/Last_Time_Interval;
+      }
+      else if (Tooth_Number == 1) {
+        Crankshaft_Speed = (NUMBER_OF_MISSING_TEETH + 1)*(DEGREES_PER_TOOTH/Last_Time_Interval);
+      }
+      Crankshaft_Position = Tooth_Start_Position;
+    }
     Need_Update = false;
   }
-  // If tooth counter has changed since last loop, update crankshaft speed and position.
-  if ((Tooth_Number != Old_Tooth_Number) && (Tooth_Number != 0)) {
-    if (Tooth_Number != 1) {
-      Crankshaft_Speed = DEGREES_PER_TOOTH/Last_Time_Interval;
-    }
-    else if (Tooth_Number == 1) {
-      Crankshaft_Speed = (NUMBER_OF_MISSING_TEETH + 1)*(DEGREES_PER_TOOTH/Last_Time_Interval);
-    }
-    Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH;
-    Old_Tooth_Number = Tooth_Number;
-  }
   // Interpolate crankshaft position based on last calculated crankshaft speed and time elapsed since last tooth detection.
-  if (((Tooth_Number != NUMBER_OF_TEETH) && (Tooth_Number != 0) && (Crankshaft_Position < Tooth_Number*DEGREES_PER_TOOTH)) || 
-  ((Tooth_Number == NUMBER_OF_TEETH) && (Crankshaft_Position < 360))) {
+  if (Crankshaft_Position < Angle_Interpolation_Limit) {
     Crankshaft_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH + (micros() - Last_Tooth_Time)*Crankshaft_Speed;
+    if (Crankshaft_Position > Angle_Interpolation_Limit) {
+      Crankshaft_Position = Angle_Interpolation_Limit;
+    }
   }
   // Fuel injection.
   if ((Old_Crankshaft_Position < INJECTION_ANGLE) && (Crankshaft_Position >= INJECTION_ANGLE) && (Crankshaft_Speed < REDLINE) && (Tooth_Number != 0)) {
