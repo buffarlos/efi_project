@@ -119,7 +119,8 @@ void loop() {
       if ((Tooth_Number == NUMBER_OF_TEETH) || (Tooth_Number == 0)) {
         Tooth_Number = 1;
       }
-      else if ((Tooth_Number != NUMBER_OF_TEETH) && (Tooth_Number != 0)) {
+      else if (Tooth_Number != 0) {
+        // Sync loss: unexpected missing teeth detection.
         Tooth_Number = 0;
       }
     }
@@ -128,27 +129,28 @@ void loop() {
         Tooth_Number++;
       }
       else {
+        // Sync loss: Missing teeth not detected where expected.
         Tooth_Number = 0;
       }
     }
-    Last_Tooth_Time = Interrupt_Time;
-    Last_Time_Interval = Current_Time_Interval;
     if (Tooth_Number != 0) {
       Tooth_Start_Position = (Tooth_Number - 1)*DEGREES_PER_TOOTH;
       if (Tooth_Number != NUMBER_OF_TEETH) {
         Angle_Interpolation_Limit = Tooth_Number*DEGREES_PER_TOOTH;
       }
-      else if (Tooth_Number == NUMBER_OF_TEETH) {
+      else {
         Angle_Interpolation_Limit = 360.0;
       }
       if (Tooth_Number != 1) {
-        Crankshaft_Speed = DEGREES_PER_TOOTH/Last_Time_Interval;
+        Crankshaft_Speed = DEGREES_PER_TOOTH/Current_Time_Interval;
       }
-      else if (Tooth_Number == 1) {
-        Crankshaft_Speed = (NUMBER_OF_MISSING_TEETH + 1)*(DEGREES_PER_TOOTH/Last_Time_Interval);
+      else {
+        Crankshaft_Speed = (NUMBER_OF_MISSING_TEETH + 1)*(DEGREES_PER_TOOTH/Current_Time_Interval);
       }
       Crankshaft_Position = Tooth_Start_Position;
     }
+    Last_Tooth_Time = Interrupt_Time;
+    Last_Time_Interval = Current_Time_Interval;
     Need_Update = false;
   }
   // Interpolate crankshaft position based on last calculated crankshaft speed and time elapsed since last tooth detection.
@@ -160,7 +162,6 @@ void loop() {
   }
   // Fuel injection.
   if ((Old_Crankshaft_Position < INJECTION_ANGLE) && (Crankshaft_Position >= INJECTION_ANGLE) && (Crankshaft_Speed < REDLINE) && (Tooth_Number != 0)) {
-    // Insert code to translate MAP input value to MAP.
     int MAP_Raw = analogRead(A4);
     MAP = MAP_CAL_PRESSURE + ((MAP_Raw - MAP_CAL_COUNT)*MAP_SLOPE);
     Injection_Time = Injection_Time_Calculation(Crankshaft_Speed, min(MAP, Old_MAP));
