@@ -61,8 +61,8 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
     {0.6, 0.6, 0.6, 0.7, 0.7, 0.8, 0.8, 0.7}, // 62.9 kPa
     {0.6, 0.7, 0.7, 0.7, 0.8, 0.8, 0.8, 0.8}, // 77.1 kPa
     {0.7, 0.7, 0.7, 0.8, 0.8, 0.8, 0.8, 0.8}, // 91.4 kPa
-    {0.7, 0.8, 0.8, 0.8, 0.8, 0.9, 0.9, 0.8}, // 105.7 kPa
-    {0.7, 0.7, 0.7, 0.8, 0.8, 0.9, 0.9, 0.8}  // 120.0 kPa
+    {0.8, 0.8, 0.8, 0.8, 0.8, 0.9, 0.9, 0.8}, // 105.7 kPa
+    {0.8, 0.8, 0.9, 0.9, 0.9, 0.9, 0.9, 0.8}  // 120.0 kPa
   // 500  1000 1500 2000 2500 3000 3500 4000
   }; // Main VE table.
   float Start_VE_Table[1][VE_Table_MAP_Points] = {
@@ -89,6 +89,7 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   if (digitalRead(Choke_Pin) == LOW) {
     Injection_Time = Injection_Time*ENRICHMENT_FACTOR;
   }
+  Injection_Time = 0.5*Injection_Time;
   int Int_Injection_Time = static_cast<int>(Injection_Time);
   return Int_Injection_Time;
 }
