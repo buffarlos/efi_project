@@ -66,7 +66,7 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   // 500  1000 1500 2000 2500 3000 3500 4000
   }; // Main VE table.
   float Start_VE_Table[1][VE_Table_MAP_Points] = {
-    {0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}
+    {0.7, 0.7, 0.7, 0.8, 0.8, 0.8, 0.9, 0.9}
   }; // Startup regime VE table.
   int Lower_MAP_Index = max(0, min(VE_Table_MAP_Points - 2, (int)((MAP - VE_Table_Minimum_MAP)/VE_Table_MAP_Step))); // Index of tabulated MAP below measured MAP.
   int Upper_MAP_Index = Lower_MAP_Index + 1; // Index of tabulated MAP above measured MAP.
