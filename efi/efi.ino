@@ -16,8 +16,8 @@ float Angle_Interpolation_Limit; // Angle to which crankshaft position should be
 byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
 
 // Constants.
-const byte NUMBER_OF_TEETH = 22; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
-const byte NUMBER_OF_MISSING_TEETH = 2; // Number of missing teeth on trigger wheel.
+const byte NUMBER_OF_TEETH = 20; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
+const byte NUMBER_OF_MISSING_TEETH = 4; // Number of missing teeth on trigger wheel.
 const float DEGREES_PER_TOOTH = 360/(NUMBER_OF_TEETH + NUMBER_OF_MISSING_TEETH); // Angle swept out by each trigger wheel tooth, in degrees.
 const float GAP_DETECTION_THRESHOLD = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
 const float INJECTION_ANGLE = 90.0; // Crankshaft angle at which injection should occur, in degrees.
