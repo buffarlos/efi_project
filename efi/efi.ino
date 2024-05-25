@@ -1,11 +1,9 @@
-// Volatile variable.
-volatile bool Tooth_Detected = false; // Trigger_Wheel_Tooth_ISR will set this value to true when tripped.
-
 // Nonvolatile variables.
 unsigned long Last_Time_Interval = 0; // Previous recorded time interval between teeth detected, in microseconds, for missing tooth detection.
 unsigned long Last_Tooth_Time = 0; // Most recent recorded absolute time when tooth was detected, in microseconds.
 unsigned long Injection_Start_Time; // Absolute time when crankshaft reached injection angle and injector signal went high, in microseconds.
 unsigned long Injection_Time; // Time interval calculated to hold injector signal high to inject correct fuel load, in microseconds.
+unsigned int Old_Hall_Switch_Count = 1023; // Previous recorded Hall switch pin level, in counts.
 float Crankshaft_Position; // Crankshaft position, based on last detected tooth number and speed-based interpolation, in degrees.
 float Crankshaft_Speed; // Crankshaft speed, in degrees per microsecond.
 float Old_Crankshaft_Position = 0; // Crankshaft position last seen by loop function, in degrees.
@@ -14,10 +12,12 @@ float Old_MAP = 101.0; // Last measured manifold absolute pressure, in kilopasca
 float Tooth_Start_Position; // Angular position of last detected tooth, in degrees.
 float Angle_Interpolation_Limit; // Angle to which crankshaft position should be interpolated.
 byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
+bool Need_Update = false;
 
 // Constants.
 const byte NUMBER_OF_TEETH = 20; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
 const byte NUMBER_OF_MISSING_TEETH = 4; // Number of missing teeth on trigger wheel.
+const unsigned int HALL_SWITCH_THRESHOLD = 512; // Hall switch pin level threshold for tooth detection, in counts.
 const float DEGREES_PER_TOOTH = 360/(NUMBER_OF_TEETH + NUMBER_OF_MISSING_TEETH); // Angle swept out by each trigger wheel tooth, in degrees.
 const float GAP_DETECTION_THRESHOLD = 1.75; // If new time interval between teeth is this many times longer than last interval, detect gap.
 const float INJECTION_ANGLE = 90.0; // Crankshaft angle at which injection should occur, in degrees.
@@ -34,14 +34,8 @@ const float DEAD_TIME = 1000.0; // Minimum injector pulse length to open injecto
 const unsigned long ONE_HUNDRED_PCT_VE_PULSE = 8694; // Stoichiometric fuel load pulse at 100% VE minus dead time, in microseconds.
 
 // Pin name constants.
-#define Hall_Switch_Pin 9
 #define Injector_Signal_Pin 6
 #define Choke_Pin 21
-
-void Trigger_Wheel_Tooth_ISR() {
-  // Interrupt triggered when Hall effect switch signal falls from high to low.
-  Tooth_Detected = true;
-}
 
 unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   // Takes current crankshaft speed and MAP, and calculates interpolated injection time based on VE table.
@@ -100,18 +94,16 @@ float Interpolation(float x, float xl, float xu, float yl, float yu) {
 }
 
 void setup() {
-  pinMode(Hall_Switch_Pin, INPUT);
   pinMode(Injector_Signal_Pin, OUTPUT);
   pinMode(Choke_Pin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(Hall_Switch_Pin), Trigger_Wheel_Tooth_ISR, FALLING);
 }
 
 void loop() {
-  // Pass volatile tooth detection flag to nonvolatile tooth detection flag in interrupt-safe environment.
-  noInterrupts();
-  bool Need_Update = Tooth_Detected;
-  Tooth_Detected = false;
-  interrupts();
+  unsigned int Hall_Switch_Count = analogRead(A6);
+  if (Old_Hall_Switch_Count < HALL_SWITCH_THRESHOLD && Hall_Switch_Count >= HALL_SWITCH_THRESHOLD) {
+    Need_Update = true;
+  }
+  Old_Hall_Switch_Count = Hall_Switch_Count;
   // Update tooth counter if tooth detection flag tripped.
   if (Need_Update) {
     unsigned long Interrupt_Time = micros(); // Absolute time at which tooth was just detected, in microseconds.
