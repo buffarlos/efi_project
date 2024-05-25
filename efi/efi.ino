@@ -124,7 +124,7 @@ void loop() {
         // Sync loss: unexpected missing teeth detection.
         Tooth_Number = 0;
         // Sync loss diagnostic message.
-        Serial.println("Unexpected gap detected")
+        // Serial.println("Unexpected gap detected");
       }
     }
     else if (Tooth_Number != 0) {
@@ -135,7 +135,7 @@ void loop() {
         // Sync loss: Missing teeth not detected where expected.
         Tooth_Number = 0;
         // Sync loss diagnostic message.
-        Serial.println("Expected gap not detected")
+        // Serial.println("Expected gap not detected");
       }
     }
     if (Tooth_Number != 0) {
