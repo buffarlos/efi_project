@@ -1,4 +1,4 @@
-// Nonvolatile variables.
+// ------------------------- Variables -------------------------
 unsigned long Last_Time_Interval = 0; // Previous recorded time interval between teeth detected, in microseconds, for missing tooth detection.
 unsigned long Last_Tooth_Time = 0; // Most recent recorded absolute time when tooth was detected, in microseconds.
 unsigned long Injection_Start_Time; // Absolute time when crankshaft reached injection angle and injector signal went high, in microseconds.
@@ -14,7 +14,7 @@ float Angle_Interpolation_Limit; // Angle to which crankshaft position should be
 byte Tooth_Number = 0; // Most recent detected tooth number, with 1 corresponding to TDC. A value of 0 indicates engine stop or sync loss.
 bool Need_Update = false;
 
-// Constants.
+// ------------------------- Constants -------------------------
 const byte NUMBER_OF_TEETH = 20; // Number of teeth on trigger wheel. DON'T INCLUDE MISSING TEETH (e.g. enter 22 for 24-2 trigger wheel, not 24).
 const byte NUMBER_OF_MISSING_TEETH = 4; // Number of missing teeth on trigger wheel.
 const unsigned int HALL_SWITCH_THRESHOLD = 512; // Hall switch pin level threshold for tooth detection, in counts.
@@ -24,19 +24,20 @@ const float INJECTION_ANGLE = 90.0; // Crankshaft angle at which injection shoul
 const float REDLINE = 0.0216; // Crankshaft speed beyond which fuel will be cut, in degrees per microsecond.
 const float ENRICHMENT_FACTOR = 1.5; // Multiply injector pulse length by this amount so long as choke switch is on.
 
-// MAP sensor calibration constants.
+// ------------------------- MAP sensor calibration constants -------------------------
 const float MAP_SLOPE = 0.11943; // Slope of MAP sensor output, in kilopascals per count.
 const float MAP_CAL_PRESSURE = 101.0; // MAP sensor calibration pressure point, in kilopascals.
 const int MAP_CAL_COUNT = 817; // MAP sensor output at calibration pressure point, in counts.
 
-// Injector constants.
+// ------------------------- Injector constants -------------------------
 const float DEAD_TIME = 1000.0; // Minimum injector pulse length to open injector, in microseconds.
 const unsigned long ONE_HUNDRED_PCT_VE_PULSE = 8694; // Stoichiometric fuel load pulse at 100% VE minus dead time, in microseconds.
 
-// Pin name constants.
+// ------------------------- Pin name definitions -------------------------
 #define Injector_Signal_Pin 6
 #define Choke_Pin 21
 
+// ------------------------- Injection pulse length calculation function -------------------------
 unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   // Takes current crankshaft speed and MAP, and calculates interpolated injection time based on VE table.
   // VE Table Constants.
@@ -88,16 +89,19 @@ unsigned long Injection_Time_Calculation(float Crankshaft_Speed, float MAP) {
   return Int_Injection_Time;
 }
 
+// ------------------------- Interpolation function -------------------------
 float Interpolation(float x, float xl, float xu, float yl, float yu) {
-  // Interpolation function for VE table.
+  // Performs linear interpolation between input values yl and yu.
   return yl + (yu - yl)*(x - xl)/(xu - xl);
 }
 
+// ------------------------- Setup function -------------------------
 void setup() {
   pinMode(Injector_Signal_Pin, OUTPUT);
   pinMode(Choke_Pin, INPUT_PULLUP);
 }
 
+// ------------------------- Main loop -------------------------
 void loop() {
   unsigned int Hall_Switch_Count = analogRead(A6);
   if (Old_Hall_Switch_Count < HALL_SWITCH_THRESHOLD && Hall_Switch_Count >= HALL_SWITCH_THRESHOLD) {
